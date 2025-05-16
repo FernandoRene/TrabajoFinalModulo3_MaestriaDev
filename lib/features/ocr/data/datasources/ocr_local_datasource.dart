@@ -6,7 +6,11 @@ import '../models/text_result_model.dart';
 abstract class OcrLocalDataSource {
   Future<Database> get database;
   Future<DocumentModel> saveDocument(String title, String imagePath);
-  Future<TextResultModel> saveTextResult(int documentId, String text, double confidence);
+  Future<TextResultModel> saveTextResult(
+    int documentId,
+    String text,
+    double confidence,
+  );
   Future<List<DocumentModel>> getAllDocuments();
   Future<List<TextResultModel>> getTextResultsForDocument(int documentId);
   Future<List<DocumentModel>> searchDocuments(String query);
@@ -56,15 +60,12 @@ class OcrLocalDataSourceImpl implements OcrLocalDataSource {
   Future<DocumentModel> saveDocument(String title, String imagePath) async {
     final db = await database;
     final now = DateTime.now().toIso8601String();
-    
-    final id = await db.insert(
-      'documents',
-      {
-        'title': title,
-        'image_path': imagePath,
-        'created_at': now,
-      },
-    );
+
+    final id = await db.insert('documents', {
+      'title': title,
+      'image_path': imagePath,
+      'created_at': now,
+    });
 
     return DocumentModel(
       id: id,
@@ -75,75 +76,88 @@ class OcrLocalDataSourceImpl implements OcrLocalDataSource {
   }
 
   @override
-  Future<TextResultModel> saveTextResult(int documentId, String text, double confidence) async {
+  Future<TextResultModel> saveTextResult(
+    int documentId,
+    String text,
+    double confidence,
+  ) async {
     final db = await database;
-    
-    final id = await db.insert(
-      'text_results',
-      {
-        'document_id': documentId,
-        'text': text,
-        'confidence': confidence,
-      },
-    );
 
-    return TextResultModel(
-      id: id,
+    // Crear un modelo para guardar
+    final textResultModel = TextResultModel(
+      id: DateTime.now().millisecondsSinceEpoch, // O cualquier ID único
       documentId: documentId,
       text: text,
       confidence: confidence,
     );
+
+    // Guardar en la base de datos
+    await db.insert(
+      'text_results',
+      textResultModel.toJson(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+
+    return textResultModel;
   }
 
   @override
   Future<List<DocumentModel>> getAllDocuments() async {
     final db = await database;
-    final results = await db.query(
-      'documents',
-      orderBy: 'created_at DESC',
-    );
+    final results = await db.query('documents', orderBy: 'created_at DESC');
 
-    return results.map((json) => DocumentModel.fromJson({
-          'id': json['id'] as int,
-          'title': json['title'] as String,
-          'imagePath': json['image_path'] as String,
-          'createdAt': DateTime.parse(json['created_at'] as String),
-        })).toList();
+    return results
+        .map(
+          (json) => DocumentModel.fromJson({
+            'id': json['id'] as int,
+            'title': json['title'] as String,
+            'imagePath': json['image_path'] as String,
+            'createdAt': DateTime.parse(json['created_at'] as String),
+          }),
+        )
+        .toList();
   }
 
   @override
-  Future<List<TextResultModel>> getTextResultsForDocument(int documentId) async {
+  Future<List<TextResultModel>> getTextResultsForDocument(
+    int documentId,
+  ) async {
     final db = await database;
-    final results = await db.query(
+
+    // Consultar la base de datos
+    final List<Map<String, dynamic>> maps = await db.query(
       'text_results',
-      where: 'document_id = ?',
+      where: 'documentId = ?',
       whereArgs: [documentId],
     );
 
-    return results.map((json) => TextResultModel.fromJson({
-          'id': json['id'] as int,
-          'documentId': json['document_id'] as int,
-          'text': json['text'] as String,
-          'confidence': json['confidence'] as double,
-        })).toList();
+    // Convertir los resultados en modelos
+    return maps.map((map) => TextResultModel.fromJson(map)).toList();
   }
 
   @override
   Future<List<DocumentModel>> searchDocuments(String query) async {
     final db = await database;
-    final results = await db.rawQuery('''
+    final results = await db.rawQuery(
+      '''
       SELECT DISTINCT d.*
       FROM documents d
       JOIN text_results t ON d.id = t.document_id
       WHERE t.text LIKE ?
       ORDER BY d.created_at DESC
-    ''', ['%$query%']);
+    ''',
+      ['%$query%'],
+    );
 
-    return results.map((json) => DocumentModel.fromJson({
-          'id': json['id'] as int,
-          'title': json['title'] as String,
-          'imagePath': json['image_path'] as String,
-          'createdAt': DateTime.parse(json['created_at'] as String),
-        })).toList();
+    return results
+        .map(
+          (json) => DocumentModel.fromJson({
+            'id': json['id'] as int,
+            'title': json['title'] as String,
+            'imagePath': json['image_path'] as String,
+            'createdAt': DateTime.parse(json['created_at'] as String),
+          }),
+        )
+        .toList();
   }
 }

@@ -29,7 +29,7 @@ class LocalDataSource {
         createdAt TEXT NOT NULL
       )
     ''');
-    
+
     // Crear tabla resultados de texto
     await db.execute('''
       CREATE TABLE text_results(
@@ -44,7 +44,10 @@ class LocalDataSource {
 
   Future<List<DocumentEntity>> getAllDocuments() async {
     final db = await database;
-    final List<Map<String, dynamic>> maps = await db.query('documents', orderBy: 'createdAt DESC');
+    final List<Map<String, dynamic>> maps = await db.query(
+      'documents',
+      orderBy: 'createdAt DESC',
+    );
 
     return List.generate(maps.length, (i) {
       return DocumentEntity(
@@ -58,27 +61,26 @@ class LocalDataSource {
 
   Future<void> saveDocument(DocumentEntity document) async {
     final db = await database;
-    await db.insert(
-      'documents',
-      {
-        'id': document.id,
-        'title': document.title,
-        'imagePath': document.imagePath,
-        'createdAt': document.createdAt.toIso8601String(),
-      },
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    await db.insert('documents', {
+      'id': document.id,
+      'title': document.title,
+      'imagePath': document.imagePath,
+      'createdAt': document.createdAt.toIso8601String(),
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<List<DocumentEntity>> searchDocuments(String query) async {
     final db = await database;
-    final List<Map<String, dynamic>> maps = await db.rawQuery('''
+    final List<Map<String, dynamic>> maps = await db.rawQuery(
+      '''
       SELECT d.* FROM documents d
       LEFT JOIN text_results t ON d.id = t.documentId
       WHERE d.title LIKE ? OR t.text LIKE ?
       GROUP BY d.id
       ORDER BY d.createdAt DESC
-    ''', ['%$query%', '%$query%']);
+    ''',
+      ['%$query%', '%$query%'],
+    );
 
     return List.generate(maps.length, (i) {
       return DocumentEntity(
@@ -90,21 +92,28 @@ class LocalDataSource {
     });
   }
 
-  Future<void> saveTextResult(TextResultEntity textResult) async {
+  Future<void> saveTextResult(
+    int documentId,
+    String text,
+    double confidence,
+  ) async {
     final db = await database;
+
     await db.insert(
-      'text_results',
+      'text_results', // Nombre de la tabla
       {
-        'id': textResult.id,
-        'documentId': textResult.documentId,
-        'text': textResult.text,
-        'confidence': textResult.confidence,
+        'id': DateTime.now().millisecondsSinceEpoch, // ID único
+        'documentId': documentId,
+        'text': text,
+        'confidence': confidence,
       },
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
   }
 
-  Future<List<TextResultEntity>> getTextResultsForDocument(int documentId) async {
+  Future<List<TextResultEntity>> getTextResultsForDocument(
+    int documentId,
+  ) async {
     final db = await database;
     final List<Map<String, dynamic>> maps = await db.query(
       'text_results',

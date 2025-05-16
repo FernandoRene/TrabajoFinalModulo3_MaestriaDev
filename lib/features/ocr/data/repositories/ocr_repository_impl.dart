@@ -11,8 +11,9 @@ import '../../domain/entities/document_entity.dart';
 
 class OcrRepositoryImpl implements OcrRepository {
   final TextRecognizer textRecognizer = TextRecognizer();
-  final LocalDataSource _localDataSource; // Esto debe ser inyectado en el constructor
-  
+  final LocalDataSource
+  _localDataSource; // Esto debe ser inyectado en el constructor
+
   OcrRepositoryImpl(this._localDataSource);
 
   @override
@@ -27,16 +28,46 @@ class OcrRepositoryImpl implements OcrRepository {
 
       return Right(pickedFile);
     } catch (e) {
-      return Left(OcrFailure(message: 'Error al capturar imagen: ${e.toString()}'));
+      return Left(
+        OcrFailure(message: 'Error al capturar imagen: ${e.toString()}'),
+      );
     }
   }
-  
+
   @override
-  Future<Either<Failure, TextResult>> extractText(String imagePath, int documentId) async {
+  Future<Either<Failure, TextResult>> extractText(
+    String imagePath,
+    int documentId,
+  ) async {
     try {
+      print(
+        "Iniciando extracción de texto desde: $imagePath para documento ID: $documentId",
+      );
+
       final inputImage = InputImage.fromFilePath(imagePath);
       final recognizedText = await textRecognizer.processImage(inputImage);
 
+      print("Texto extraído por OCR: ${recognizedText.text}");
+      print("Longitud del texto: ${recognizedText.text.length}");
+      print("Bloques encontrados: ${recognizedText.blocks.length}");
+
+      // Mostrar detalles de bloques para depuración
+      for (var block in recognizedText.blocks) {
+        print("Bloque: ${block.text}");
+        print("  Líneas: ${block.lines.length}");
+        for (var line in block.lines) {
+          print("    Línea: ${line.text}");
+          print("      Elementos: ${line.elements.length}");
+        }
+      }
+
+      // Si no hay texto reconocido, maneja el caso
+      if (recognizedText.text.isEmpty) {
+        print("⚠️ No se detectó texto en la imagen");
+        return Left(OcrFailure(message: 'No se detectó texto en la imagen'));
+      }
+
+      // Crear un objeto de resultado
       final textResult = TextResult(
         id: DateTime.now().millisecondsSinceEpoch,
         documentId: documentId,
@@ -44,9 +75,25 @@ class OcrRepositoryImpl implements OcrRepository {
         confidence: 0.9, // Valor por defecto o calculado
       );
 
+      // IMPORTANTE: Guardar el resultado en la base de datos
+      try {
+        await _localDataSource.saveTextResult(
+          documentId,
+          recognizedText.text,
+          0.9, // Confianza
+        );
+        print("✅ Resultado de OCR guardado en la base de datos");
+      } catch (dbError) {
+        print("⚠️ Error al guardar resultado en base de datos: $dbError");
+        // Puedes decidir si quieres fallar aquí o continuar
+      }
+
       return Right(textResult);
     } catch (e) {
-      return Left(OcrFailure(message: 'Error al extraer texto: ${e.toString()}'));
+      print("❌ Error al extraer texto: $e");
+      return Left(
+        OcrFailure(message: 'Error al extraer texto: ${e.toString()}'),
+      );
     }
   }
 
@@ -54,24 +101,30 @@ class OcrRepositoryImpl implements OcrRepository {
   Future<Either<Failure, List<Document>>> getAllDocuments() async {
     try {
       final documentEntities = await _localDataSource.getAllDocuments();
-      final documents = documentEntities
-          .map(
-            (docEntity) => Document(
-              id: docEntity.id,
-              title: docEntity.title,
-              imagePath: docEntity.imagePath,
-              createdAt: docEntity.createdAt,
-            ),
-          )
-          .toList();
+      final documents =
+          documentEntities
+              .map(
+                (docEntity) => Document(
+                  id: docEntity.id,
+                  title: docEntity.title,
+                  imagePath: docEntity.imagePath,
+                  createdAt: docEntity.createdAt,
+                ),
+              )
+              .toList();
       return Right(documents);
     } catch (e) {
-      return Left(OcrFailure(message: 'Error al obtener documentos: ${e.toString()}'));
+      return Left(
+        OcrFailure(message: 'Error al obtener documentos: ${e.toString()}'),
+      );
     }
   }
-  
+
   @override
-  Future<Either<Failure, Document>> saveDocument(String title, String imagePath) async {
+  Future<Either<Failure, Document>> saveDocument(
+    String title,
+    String imagePath,
+  ) async {
     try {
       final docEntity = DocumentEntity(
         id: DateTime.now().millisecondsSinceEpoch,
@@ -91,10 +144,12 @@ class OcrRepositoryImpl implements OcrRepository {
 
       return Right(document);
     } catch (e) {
-      return Left(OcrFailure(message: 'Error al guardar documento: ${e.toString()}'));
+      return Left(
+        OcrFailure(message: 'Error al guardar documento: ${e.toString()}'),
+      );
     }
   }
-  
+
   @override
   Future<Either<Failure, List<Document>>> searchDocuments(String query) async {
     try {
@@ -112,19 +167,25 @@ class OcrRepositoryImpl implements OcrRepository {
             .toList(),
       );
     } catch (e) {
-      return Left(OcrFailure(message: 'Error al buscar documentos: ${e.toString()}'));
+      return Left(
+        OcrFailure(message: 'Error al buscar documentos: ${e.toString()}'),
+      );
     }
   }
 
   @override
-  Future<Either<Failure, List<TextResult>>> getTextResultsForDocument(int documentId) async {
+  Future<Either<Failure, List<TextResult>>> getTextResultsForDocument(
+    int documentId,
+  ) async {
     try {
-      final textResults = await _localDataSource.getTextResultsForDocument(documentId);
+      final textResults = await _localDataSource.getTextResultsForDocument(
+        documentId,
+      );
       return Right(
         textResults
             .map(
               (text) => TextResult(
-                id: text.id, 
+                id: text.id,
                 documentId: documentId,
                 text: text.text,
                 confidence: text.confidence,
@@ -134,7 +195,9 @@ class OcrRepositoryImpl implements OcrRepository {
       );
     } catch (e) {
       return Left(
-        OcrFailure(message: 'Error al obtener resultados de texto: ${e.toString()}'),
+        OcrFailure(
+          message: 'Error al obtener resultados de texto: ${e.toString()}',
+        ),
       );
     }
   }
