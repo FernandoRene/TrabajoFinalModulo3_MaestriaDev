@@ -2,14 +2,13 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/document.dart';
-import '../providers/ocr_providers.dart';
 import '../../../repositories.dart';
+import 'package:smart_scan_ticket/core/widgets/custom_widgets.dart';
 
 class DocumentDetailsScreen extends ConsumerStatefulWidget {
   final Document document;
 
-  const DocumentDetailsScreen({Key? key, required this.document})
-    : super(key: key);
+  const DocumentDetailsScreen({super.key, required this.document});
 
   @override
   ConsumerState<DocumentDetailsScreen> createState() =>
@@ -35,7 +34,9 @@ class _DocumentDetailsScreenState extends ConsumerState<DocumentDetailsScreen> {
 
     try {
       final repository = ref.read(ocrRepositoryProvider);
-      final result = await repository.getTextResultsForDocument(widget.document.id);
+      final result = await repository.getTextResultsForDocument(
+        widget.document.id,
+      );
 
       result.fold(
         (failure) {
@@ -46,9 +47,10 @@ class _DocumentDetailsScreenState extends ConsumerState<DocumentDetailsScreen> {
         },
         (textResults) {
           setState(() {
-            _documentText = textResults.isNotEmpty
-                ? textResults.first.text
-                : "No hay texto disponible";
+            _documentText =
+                textResults.isNotEmpty
+                    ? textResults.first.text
+                    : "No hay texto disponible";
             _isLoading = false;
           });
         },
@@ -65,74 +67,73 @@ class _DocumentDetailsScreenState extends ConsumerState<DocumentDetailsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(widget.document.title)),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
+      body:
+          _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _error != null
               ? Center(child: Text("Error: $_error"))
               : SingleChildScrollView(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Información del documento
-                      Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                "Fecha: ${widget.document.createdAt.toLocal().toString().split(' ')[0]}",
-                                style: const TextStyle(fontSize: 16.0),
-                              ),
-                            ],
-                          ),
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Información del documento
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Fecha: ${widget.document.createdAt.toLocal().toString().split(' ')[0]}",
+                              style: const TextStyle(fontSize: 16.0),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 16.0),
+                    ),
+                    const SizedBox(height: 16.0),
 
-                      // Contenido del documento
-                      const Text(
-                        "Contenido:",
-                        style: TextStyle(
-                          fontSize: 18.0,
-                          fontWeight: FontWeight.bold,
-                        ),
+                    // Contenido del documento
+                    const Text(
+                      "Contenido:",
+                      style: TextStyle(
+                        fontSize: 18.0,
+                        fontWeight: FontWeight.bold,
                       ),
-                      const SizedBox(height: 8.0),
-                      Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Text(
-                            _documentText ?? "Cargando texto...",
-                            style: const TextStyle(fontSize: 16.0),
-                          ),
-                        ),
-                      ),
+                    ),
+                    const SizedBox(height: 8.0),
 
-                      // Mostrar imagen
-                      const SizedBox(height: 16.0),
-                      const Text(
-                        "Imagen:",
-                        style: TextStyle(
-                          fontSize: 18.0,
-                          fontWeight: FontWeight.bold,
+                    // Aquí usamos el widget CopiableTextWidget
+                    CopiableTextWidget(
+                      text: _documentText ?? "Cargando texto...",
+                      style: const TextStyle(fontSize: 16.0),
+                      useCard: true,
+                    ),
+
+                    // Mostrar imagen
+                    const SizedBox(height: 16.0),
+                    const Text(
+                      "Imagen:",
+                      style: TextStyle(
+                        fontSize: 18.0,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8.0),
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Image.file(
+                          File(widget.document.imagePath),
+                          width: double.infinity,
+                          fit: BoxFit.contain,
                         ),
                       ),
-                      const SizedBox(height: 8.0),
-                      Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Image.file(
-                            File(widget.document.imagePath),
-                            width: double.infinity,
-                            fit: BoxFit.contain,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
+              ),
     );
   }
 }

@@ -7,12 +7,12 @@ class CameraOverlay extends StatelessWidget {
   final Color scanAreaColor;
 
   const CameraOverlay({
-    Key? key,
+    super.key,
     this.width = 300.0,
     this.height = 200.0,
     this.overlayColor = const Color.fromRGBO(0, 0, 0, 0.5),
     this.scanAreaColor = Colors.transparent,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

@@ -1,15 +1,12 @@
 import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/document.dart';
-import '../../domain/entities/text_result.dart';
 import '../../domain/usecases/get_all_documents.dart';
 import '../../domain/usecases/save_document.dart';
 import '../../domain/usecases/search_documents.dart';
 import '../../domain/usecases/extract_text.dart';
 import '../../domain/repositories/ocr_repository.dart';
 import '../../../repositories.dart';
-import '../../../../core/errors/failures.dart';
-import 'package:dartz/dartz.dart';
 
 // Proveedores para casos de uso
 final getAllDocumentsUseCaseProvider = Provider<GetAllDocuments>((ref) {
