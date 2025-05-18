@@ -38,6 +38,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 applicationVersion: '1.0.0',
                 applicationIcon: const FlutterLogo(size: 40),
                 applicationLegalese: '© 2025 Desarrollado por Fernando Llusco',
+                children: [
+                  const Text(
+                    'Aplicación para escanear documentos y extraer texto utilizando OCR, elaborado como proyecto de fin del modulo 3',
+                  ),
+                ],
               );
             },
           ),
